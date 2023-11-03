@@ -3,7 +3,7 @@
 from joppy.api import Api
 from joppy import tools
 import sys
-
+import requests
 from os import listdir
 from os.path import isfile, join
 
@@ -11,9 +11,12 @@ from collections import Counter
 
 import argparse
 
-with open('.token','r') as f:
-    token = f.read().splitlines()[0] # avoid readline() which appends \n to each line
-
+try:
+	with open('.token','r') as f:
+    		token = f.read().splitlines()[0] # avoid readline() which appends \n to each line
+except FileNotFoundError:
+	print("Missing `.token` file.")
+	exit(1) 
 # Create a new Api instance.
 api = Api(token)
 
@@ -23,15 +26,6 @@ res_exists = "8d48085ce54c4543bcd700fbe3de206c"
 res_data_example = """ResourceData(type_=None, id='467e9cc0983c4dd6bce42bcb9f967cc8', title='0f0a2d54285f6fda0da938248de92feb_6c6a8b96f9e94b5cb50ef983a6bc9c2c.jpg', mime=None, filename=None, created_time=None, updated_time=None, user_created_time=None, user_updated_time=None, file_extension=None, encryption_cipher_text=None, encryption_applied=None, encryption_blob_encrypted=None, size=None, is_shared=None, share_id=None, master_key_id=None)"""
 
 resource_directory="/Users/dirk/.config/joplin-desktop/resources"
-
-
-# Prints name
-# code = api.get_resource(res_exists)
-# print("\n\nData: " + code.title)
-
-# Throws exception
-# code = api.get_resource(res_missed)
-# print("\n\nData: " + code)
 
 def db_id_list():
 	data = api.get_all_resources()
@@ -81,14 +75,23 @@ args = parse_arguments()
 def output_list(l):
 	print(*l, sep = '\n')
 
-match args.command:
-	case "db-all":
-		output_list(db_id_list())
-	case "dir-all":
-		output_list(dir_filename_list())
-	case "dir-types":
-		resource_directory_as_map()
-	case "dir-misses":
-		output_list(diff_db_dir()[0])
-	case "db-misses":
-		output_list(diff_db_dir()[1])
+import json
+import re
+
+try:
+	match args.command:
+		case "db-all":
+			output_list(db_id_list())
+		case "dir-all":
+			output_list(dir_filename_list())
+		case "dir-types":
+			resource_directory_as_map()
+		case "dir-misses":
+			output_list(diff_db_dir()[0])
+		case "db-misses":
+			output_list(diff_db_dir()[1])
+except requests.exceptions.HTTPError as err:
+	# err = json.loads(err.response._content.decode("utf-8"))["error"]	
+	msg = json.loads(err.response._content)["error"]
+	end = re.search("[\n:]", msg).start()
+	print(msg[0:end])	
