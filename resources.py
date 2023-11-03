@@ -76,6 +76,20 @@ def diff_db_dir():
 	ids_dir = set( ids_files.keys() )
 	return ids_db.difference(ids_dir), [ids_files[id] for id in ids_dir.difference(ids_db)]
 
+import os
+
+def move_files(file_with_filenames, source_directory, target_directory, stream=std.out):
+ 	  with open(file_with_filenames,'r') as f:
+              # avoid readline() which appends \n to each line
+              files = f.read().splitlines()
+
+	for f in files:
+		src = os.path.join(source_directory,f)
+		trg = os.path.join(target_directory,f)
+		os.rename(src, trg)
+		if (stream):
+			print("Moving",src,"to",trg, file=stream)
+
 
 command = None
 commands = {
