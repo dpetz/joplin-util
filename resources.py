@@ -6,11 +6,11 @@ import sys
 import requests
 from os import listdir
 from os.path import isfile, join
-import json
+#import json
 import re
 from collections import Counter
 import argparse
-from functools import cached_property
+#from functools import cached_property
 
 def error(msg):
 	print(msg, file=sys.stderr)
@@ -76,21 +76,6 @@ def diff_db_dir():
 	ids_dir = set( ids_files.keys() )
 	return ids_db.difference(ids_dir), [ids_files[id] for id in ids_dir.difference(ids_db)]
 
-import os
-
-def move_files(file_with_filenames, source_directory, target_directory, stream=std.out):
- 	  with open(file_with_filenames,'r') as f:
-              # avoid readline() which appends \n to each line
-              files = f.read().splitlines()
-
-	for f in files:
-		src = os.path.join(source_directory,f)
-		trg = os.path.join(target_directory,f)
-		os.rename(src, trg)
-		if (stream):
-			print("Moving",src,"to",trg, file=stream)
-
-
 command = None
 commands = {
 	"db-all": "list all database resources"
@@ -98,7 +83,7 @@ commands = {
 	,"dir-extensions": "summarize directory files by type" 
 	,"db-misses": "directory resources missing in database"
 	,"dir-misses": "database resources missing in directory"
-	,"put-file": "add or update file "
+	,"put-files": "add or update database for all files in --dir"
 }
 
 
@@ -106,6 +91,7 @@ def parse_arguments():
 	commands_help = "Supported Commands:\n" + "\n".join( k+"\t"+v for k, v in commands.items() )
 	argp = argparse.ArgumentParser(description='Explore and modify Joplin resources',
 		epilog=commands_help, formatter_class=argparse.RawDescriptionHelpFormatter)
+	argp.add_argument("--dir")
 	argp.add_argument("command", choices=commands.keys())
 	return argp.parse_args(sys.argv[1:])
 
@@ -113,10 +99,18 @@ def parse_arguments():
 def output_list(l, stream=sys.stdout):
 	print(*l, sep = '\n', file=stream)
 
+import os
 
-def run_command(cmd):
+def put_files(stage,log=None):
+	api = Database().api()
+	for file in os.listdir(stage):
+		resource_id = api.add_resource(filename=os.path.join(stage,file), id=file.split('.')[0])
+		if(log):
+			print("DB resource added:", resource_id)
+
+def run_command(args):
 	try:
-		match cmd:
+		match args.command:
 			case "db-all":
 				output_list(Database().id_list())
 			case "dir-all":
@@ -127,6 +121,8 @@ def run_command(cmd):
 				output_list(diff_db_dir()[0])
 			case "db-misses":
 				output_list(diff_db_dir()[1])
+			case "put-files":
+				put_files(args.dir,log=sys.stdout)
 	except requests.exceptions.HTTPError as err:
 		# err = json.loads(err.response._content.decode("utf-8"))["error"]	
 		msg = json.loads(err.response._content)["error"]
@@ -134,6 +130,7 @@ def run_command(cmd):
 		error(msg[0:end])
 
 
+
 if __name__ == "__main__":
         args = parse_arguments()
-        run_command(args.command)	
+        run_command(args)	
